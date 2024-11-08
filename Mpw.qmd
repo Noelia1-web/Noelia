@@ -32,13 +32,235 @@ You can add options to executable code like this
 
 The `echo: false` option disables the printing of code (only output is displayed).
 
+# ¿Como usar quarto?
 
-# Mi Primera página Web
+## Fuentes
 
-1. Tener mi proyecto
-1. Conectar mi proyecto con GitHub
-1. Tener un archivo en html llamado "index.html"
-1. Hacer push al repositorio
-1. Activar GitHub pages
+-   negrita: *esto es fuente negrita*
+-   cursiva: *solanum tuberosum*
+
+## Formulas matematicas
+
+Area de una circunferencia $Area_{circunferencia}=pi.r^2$
+
+esta es una formula cualquiera $$k=\frac{\left(2x-1\right)^2-1}{4}"$$ \# Mi Primera página Web
+
+1.  Tener mi proyecto
+2.  Conectar mi proyecto con GitHub
+3.  Tener un archivo en html llamado "index.html"
+4.  Hacer push al repositorio
+5.  Activar GitHub pages
+
+# Modelos lineales
+
+## Datos importados
+
+#Importar data xlsx
+
+```{r}
+source('https://inkaverse.com/setup.r')
+
+library(openxlsx)
+Data1 <- openxlsx::read.xlsx("LA MOLINA 2014 POTATO WUE (FB).xlsx", sheet = "fb")
+```
+
+# Modelo lineal lfa
+
+```{r}
+modelo <- lm(formula = lfa ~ bloque + geno + riego + riego*geno, data = Data1)
+
+anova(modelo)
+plot(modelo)
 
 
+```
+
+boxplot
+
+```{r}
+library(ggplot2)
+# Crear un boxplot para visualizar los efectos de geno y riego
+ggplot(Data1, aes(x = factor(geno), y = lfa, fill = factor(riego))) +
+  geom_boxplot() +
+  labs(x = "Genotipo", y = "LFA (Respuesta)", fill = "Riego") +
+  theme_minimal() +
+  ggtitle("Boxplot de LFA por genotipo y tratamiento de riego")
+```
+
+# Modelo lineal de hi
+
+```{r}
+modelo <- aov(formula = hi ~ bloque + geno + riego + riego*geno, data = Data1)
+
+anova(modelo)
+plot(modelo)
+```
+
+boxplot
+
+```{r}
+library(ggplot2)
+# Crear un boxplot para visualizar los efectos de geno y riego
+ggplot(Data1, aes(x = factor(geno), y = hi, fill = factor(riego))) +
+  geom_boxplot() +
+  labs(x = "Interacción riego y genotipo", y = "Área foliar (cm^2)", fill = "Riego") +
+  theme_minimal() +
+  ggtitle("Boxplot con interacción de niveles de riego y genotipo")
+
+```
+
+# Modelos lineales mixtos: lfa y hi
+
+```{r}
+library(lme4)
+library(lmerTest)
+modelo<- lme4::lmer(lfa ~ riego + geno + riego*geno +
+                      (1|bloque), data = Data1)
+
+anova(modelo)
+plot(modelo)
+
+ol <- boxplot(lfa ~ riego*geno,Data1)
+ol
+```
+
+```{r}
+library(inti)
+
+model <- remove_outliers(data = Data1
+                         , formula = lfa ~ riego + geno + riego*geno + (1|bloque)
+                         , plot_diag = T)
+model
+```
+
+#comparacion de medias
+
+```{r}
+modelo <- lm(formula = lfa ~ bloque + riego + geno + riego*geno
+          , data = Data1)
+anova(modelo)
+library(agricolae)
+tukey_result <- HSD.test(modelo
+                         , c("geno", "riego")
+                         , group = TRUE)
+tukey_result
+
+
+plot(tukey_result)
+
+str(tukey_result)
+
+tukey_result
+
+grupos <- tukey_result$groups %>% 
+  rownames_to_column("tratamientos") %>% 
+  separate(tratamientos, into = c("geno", "riego")
+           , sep = ":")
+
+str(grupos)
+```
+
+```{r}
+ggplot(grupos, aes(x = geno, y = lfa, fill = riego)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  labs(x = "Genotipo", y = "LFA", fill = "Riego") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("Gráfico de barras: LFA por genotipo y riego") +
+  geom_text(aes(label = groups, y = lfa + 0.05), 
+            position = position_dodge(width = 0.9),vjust=0)
+```
+
+```{r}
+modelo <- lme4::lmer(hi ~ (1|bloque) + geno*riego
+                     , data = Data1)
+anova(modelo)
+source('https://inkaverse.com/setup.r')
+
+
+library(emmeans)
+library(multcomp)
+library(multcompView)
+library(lme4)
+library(lmerTest)
+
+
+
+cm1 <- emmeans(modelo, ~ geno | riego) %>% 
+  cld(Letters = letters, reversed = T)
+cm1
+
+
+cm2 <- emmeans(modelo, ~ riego | geno) %>% 
+  cld(Letters = letters, reversed = T)
+cm2
+
+cm3 <- emmeans(modelo, ~ riego * geno) %>% 
+  cld(Letters = letters, reversed=3)
+cm3
+```
+
+```{r}
+# Convertir las medias estimadas a un dataframe
+cm1_df <- as.data.frame(cm1)
+
+# Ver el contenido del dataframe para asegurarnos de que tiene las columnas correctas
+print(cm1_df)
+```
+
+```{r}
+# Crear el gráfico de barras con los resultados de las medias estimadas de emmeans
+ggplot(cm1_df, aes(x = geno, y = emmean, fill = riego)) +  # Cambia "emmean" por la columna de las medias estimadas
+  geom_bar(stat = "identity", position = position_dodge(), color = "black") +
+  labs(title = "Comparación de Medias - Medias Estimadas", 
+       x = "Genotipos", 
+       y = "hi") +
+  theme_minimal() +
+  theme(legend.title = element_blank()) +
+  scale_fill_discrete(name = "Riego")
+```
+
+#analisis multivariado
+
+```{r}
+str(Data1)
+```
+
+#correlacion
+
+```{r}
+library(psych)
+Data1 %>%
+  select_if(is.numeric) %>%
+  dplyr::select(-c("block")) %>%
+  pairs.panels(
+    x = .,
+    hist.col = "red",
+    pch = 21,
+    stars = TRUE,
+    scale = FALSE,
+    lm = TRUE
+  )
+```
+
+##PCA:analisis de componentes principales
+
+```{r}
+library(FactoMineR)
+library(dplyr)
+library(cowplot)
+mv <- Data1 %>% 
+  group_by(riego, geno) %>% 
+  summarise(across(where(is.numeric), ~ mean(., na.rm = TRUE))) %>% 
+  PCA(scale.unit = T, quali.sup = c(1:4), graph = F)
+
+p1 <- plot(mv
+     , choix="ind"
+     , habillage=1)
+p2 <- plot(mv
+     , choix="var")
+
+list(p1, p2) %>% 
+  plot_grid(plotlist=.,nrow=1)
+
+```
